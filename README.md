@@ -199,19 +199,21 @@ ansible/
 ├─ requirements.yml                         # Ansible Collections List
 ├─ ansible.md
 ├─ k8s_cluster.png
-├─ README.md
-└─ structure.md
+└─ README.md
 ```
 
 ## Errors
 
-If you run playbook and get error about `sshpass` not installed on Ansible Host.
+If you run playbook and get error about `sshpass`, that error is `sshpass` not installed on Ansible Host.
 
 - `- error: "msg": "to use the 'ssh' connection type with passwords or pkcs11_provider, you must install the sshpass program"`
 
 Run this command to install `sshpass` on Ansible Host.
 
 ```bash
+# in Linux (bash)
 sudo apt update
 sudo apt install sshpass -y
+# in Windows (powershell)
+# I don't know yet. (Use Linux based i recommend [WSL - Distro: Ubuntu24.04])
 ```
