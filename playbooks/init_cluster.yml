@@ -1,0 +1,10 @@
+---
+- name: Setup Kubernetes Master (Create Cluster)
+  hosts: masters
+  roles:
+    - k8s_master
+
+- name: Setup Kubernetes Workers (Join Cluster)
+  hosts: workers
+  roles:
+    - k8s_worker

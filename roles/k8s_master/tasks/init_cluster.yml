@@ -1,0 +1,44 @@
+---
+- name: Initialize Kubernetes Cluster
+  become: yes
+  ansible.builtin.command:
+    cmd: kubeadm init --pod-network-cidr={{ pod_network_cidr }}
+  args:
+    creates: /etc/kubernetes/admin.conf
+
+- name: Create .kube directory for the user
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.file:
+    path: "$HOME/.kube"
+    state: directory
+    mode: "0755"
+
+- name: Copy admin.conf to user's kube config
+  become: yes
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+    remote_src: yes
+
+- name: Create Join Token and print command
+  become: yes
+  ansible.builtin.command: kubeadm token create --print-join-command
+  register: join_command_raw
+
+- name: Set Join Command as a fact
+  ansible.builtin.set_fact:
+    k8s_join_command: "{{ join_command_raw.stdout }}"
+
+- name: Read kube config file content (Slurp)
+  become: yes
+  ansible.builtin.slurp:
+    src: /etc/kubernetes/admin.conf
+  register: kube_config_content
+
+- name: Store kube config content as a fact
+  ansible.builtin.set_fact:
+    k8s_admin_conf_content: "{{ kube_config_content['content'] | b64decode }}"

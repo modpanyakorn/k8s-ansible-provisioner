@@ -1,0 +1,54 @@
+---
+# Disable swap immediately
+# - name: Disable swap immediately
+#   become: yes
+#   ansible.builtin.command: swapoff -a
+#   when: ansible_swaptotal_mb > 0
+
+# Remove swap entry from fstab to disable swap on reboot
+- name: Remove swap entry from fstab
+  become: yes
+  ansible.builtin.mount:
+    name: none
+    fstype: swap
+    state: absent
+
+- name: Add all inventory hosts to /etc/hosts
+  become: yes
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ hostvars[item]['ansible_host'] }} {{ item }}"
+    regexp: "^.*\\s+{{ item }}$"
+    state: present
+  loop: "{{ groups['k8s_cluster'] }}"
+
+- name: Create k8s modules load configuration
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+    mode: "0644"
+
+- name: Load kernel modules immediately
+  become: yes
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Set sysctl parameters for Kubernetes
+  become: yes
+  ansible.builtin.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/k8s.conf
+    state: present
+    reload: yes
+  loop:
+    - { name: "net.bridge.bridge-nf-call-iptables", value: "1" }
+    - { name: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+    - { name: "net.ipv4.ip_forward", value: "1" }

@@ -1,0 +1,7 @@
+[project]
+name = "k8s-ansible-provisioner"
+version = "0.1.0"
+description = "Automated Kubernetes cluster provisioning using Ansible."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["ansible-core>=2.20.1"]

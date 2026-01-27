@@ -1,0 +1,25 @@
+---
+- name: Run kubeadm reset
+  become: yes
+  ansible.builtin.command: kubeadm reset -f
+  register: reset_res
+  ignore_errors: yes
+
+- name: Remove kubectl config file
+  become: yes
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/.kube/config"
+    state: absent
+
+- name: Verify cleanup by checking cluster-info
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: kubectl cluster-info
+  register: cleanup_check
+  ignore_errors: yes
+
+- name: Display Cleanup Verification
+  ansible.builtin.debug:
+    msg:
+      - "STDOUT: {{ cleanup_check.stdout }}"
+      - "STDERR: {{ cleanup_check.stderr }}"

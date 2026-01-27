@@ -1,0 +1,54 @@
+---
+- name: Download Docker GPG key
+  become: yes
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /tmp/docker.key
+    mode: "0644"
+
+- name: De-armor Docker GPG key
+  become: yes
+  ansible.builtin.shell:
+    cmd: gpg --dearmor < /tmp/docker.key > /etc/apt/keyrings/docker.gpg
+    creates: /etc/apt/keyrings/docker.gpg
+
+- name: Add Docker repository for Containerd
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/docker.list
+    content: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+    mode: "0644"
+
+- name: Install containerd.io
+  become: yes
+  ansible.builtin.apt:
+    name: containerd.io
+    state: present
+    update_cache: yes
+
+- name: Ensure containerd config directory exists
+  become: yes
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    mode: "0755"
+
+- name: Generate default containerd config
+  become: yes
+  ansible.builtin.shell:
+    cmd: containerd config default > /etc/containerd/config.toml
+
+- name: Set SystemdCgroup to true in config.toml
+  become: yes
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: "SystemdCgroup = false"
+    replace: "SystemdCgroup = true"
+
+- name: Restart containerd service
+  become: yes
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted
+    # running when boot
+    enabled: yes

@@ -1,0 +1,9 @@
+---
+- name: Install kubeadm kubelet kubectl
+  import_tasks: ./install_native.yml
+
+- name: Prepare Kubernetes Deploymment
+  import_tasks: ./prepare_k8s_deployment.yml
+
+- name: Install Containerd
+  import_tasks: ./install_containerd.yml

@@ -1,0 +1,3 @@
+---
+- name: Cleanup Kubernetes Cluster
+  import_tasks: ./cleanup_cluster.yml

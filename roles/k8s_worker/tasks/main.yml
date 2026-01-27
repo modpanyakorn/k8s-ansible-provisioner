@@ -1,0 +1,3 @@
+---
+- name: Join Kubernetes Cluster
+  import_tasks: ./join_cluster.yml

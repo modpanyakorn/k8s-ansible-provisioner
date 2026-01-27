@@ -1,0 +1,6 @@
+---
+- name: Setup Kubernetes Nodes (Master and Workers)
+  hosts: k8s_cluster
+  become: true
+  roles:
+    - k8s_prepare

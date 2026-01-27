@@ -1,0 +1,55 @@
+---
+- name: Stop and Disable AppArmor
+  become: yes
+  ansible.builtin.shell: |
+    systemctl stop apparmor
+    systemctl disable apparmor
+  ignore_errors: yes
+
+- name: Restart Containerd
+  become: yes
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted
+
+- name: Create .kube directory for worker user
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.file:
+    path: "$HOME/.kube"
+    state: directory
+    mode: "0755"
+
+- name: Copy kube config from Master to Worker
+  become: yes
+  ansible.builtin.copy:
+    content: "{{ hostvars[groups['masters'][0]]['k8s_admin_conf_content'] }}"
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+
+- name: Join Worker to Cluster
+  become: yes
+  ansible.builtin.command: "{{ hostvars[groups['masters'][0]]['k8s_join_command'] }}"
+
+# Show Output
+- name: Check Cluster Nodes Status
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: kubectl get nodes
+  register: nodes_output
+
+- name: Display Nodes Status
+  ansible.builtin.debug:
+    var: nodes_output.stdout_lines
+
+- name: Check Cluster Info
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: kubectl cluster-info
+  register: cluster_info_output
+
+- name: Display Cluster Info
+  ansible.builtin.debug:
+    var: cluster_info_output.stdout_lines
