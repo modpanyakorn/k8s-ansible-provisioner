@@ -25,6 +25,18 @@
     regexp: '^([^#].*?\sswap\s+.*)$'
     replace: '# \1'
 
+- name: Set hostname based on inventory name
+  become: yes
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Update /etc/hosts with new hostname
+  become: yes
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127.0.1.1'
+    line: "127.0.1.1 {{ inventory_hostname }}"
+
 - name: Add all inventory hosts to /etc/hosts
   become: yes
   ansible.builtin.lineinfile:
