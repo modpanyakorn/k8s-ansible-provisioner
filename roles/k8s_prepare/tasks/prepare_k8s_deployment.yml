@@ -6,12 +6,24 @@
 #   when: ansible_swaptotal_mb > 0
 
 # Remove swap entry from fstab to disable swap on reboot
-- name: Remove swap entry from fstab
+# - name: Remove swap entry from fstab
+#   become: yes
+#   ansible.builtin.mount:
+#     name: none
+#     fstype: swap
+#     state: absent
+
+- name: Disable swap immediately (Force)
   become: yes
-  ansible.builtin.mount:
-    name: none
-    fstype: swap
-    state: absent
+  ansible.builtin.shell: swapoff -a
+  changed_when: false
+
+- name: Disable swap in /etc/fstab (Permanent)
+  become: yes
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+.*)$'
+    replace: '# \1'
 
 - name: Add all inventory hosts to /etc/hosts
   become: yes
