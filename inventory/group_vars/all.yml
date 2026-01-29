@@ -1,2 +1,7 @@
 k8s_version: "1.31"
-pod_network_cidr: "10.99.0.0/16"
+pod_network_cidr: "10.10.0.0/16"
+
+flannel_url: "https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml"
+
+portworx_operator_url: "https://install.portworx.com/3.5?comp=pxoperator&kbver=1.31.0&ns=px-enterprise"
+portworx_cluster_url: "https://install.portworx.com/3.5?operator=true&mc=false&kbver=1.31.0&ns=px-enterprise&b=true&s=%22%2Fdev%2Fsdb%22&kd=%2Fdev%2Fsdc&c=px-cluster-84b192bb-01ec-4a1a-aade-73e392d547c8&stork=true&csi=true&mon=true&aut=true&tel=true&st=k8s&promop=true"
