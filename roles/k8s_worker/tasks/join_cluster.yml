@@ -23,7 +23,7 @@
 - name: Copy kube config from Master to Worker
   become: yes
   ansible.builtin.copy:
-    content: "{{ hostvars[groups['masters'][0]]['k8s_admin_conf_content'] }}"
+    content: "{{ hostvars[groups['primary_masters'][0]]['k8s_admin_conf_content'] }}"
     dest: "/home/{{ ansible_user }}/.kube/config"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
@@ -31,7 +31,7 @@
 
 - name: Join Worker to Cluster
   become: yes
-  ansible.builtin.command: "{{ hostvars[groups['masters'][0]]['k8s_join_command'] }}"
+  ansible.builtin.command: "{{ hostvars[groups['primary_masters'][0]]['k8s_join_command'] }}"
 
 # Show Output
 - name: Check Cluster Nodes Status

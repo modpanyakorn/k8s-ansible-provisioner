@@ -1,0 +1,21 @@
+---
+- name: Initialize Kubernetes High Availability (HA) Cluster
+  hosts: primary_masters
+  become: true
+  vars:
+    master: "ha"
+  roles:
+    - k8s_master
+
+- name: Join Secondary Masters to HA Cluster
+  hosts: secondary_masters
+  become: true
+  vars:
+    master: "ha"
+  roles:
+    - k8s_master
+
+- name: Setup Kubernetes Workers (Join Cluster)
+  hosts: workers
+  roles:
+    - k8s_worker
