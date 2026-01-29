@@ -1,0 +1,6 @@
+---
+- name: Deploy Flannel Plugin
+  import_tasks: ./deploy_flannel.yml
+
+- name: Deploy Portworx Plugin
+  import_tasks: ./deploy_portworx.yml

@@ -1,0 +1,19 @@
+---
+- name: Fetch Flannel manifest from URL
+  ansible.builtin.uri:
+    url: "{{ flannel_url }}"
+    return_content: yes
+  register: flannel_manifest_raw
+  # when: inventory_hostname in groups['primary_masters']
+
+- name: Apply Flannel CNI with Dynamic CIDR
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: kubectl apply -f -
+  args:
+    stdin: >
+      {{ flannel_manifest_raw.content | 
+         regex_replace('"Network":\s*"[^"]*"', '"Network": "' + pod_network_cidr + '"') }}
+  register: flannel_res
+  changed_when: "'created' in flannel_res.stdout or 'configured' in flannel_res.stdout"
+  # when: inventory_hostname in groups['primary_masters']

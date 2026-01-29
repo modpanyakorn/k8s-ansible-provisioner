@@ -1,0 +1,5 @@
+---
+- name: Deploy Plugins
+  hosts: primary_masters
+  roles:
+    - k8s_plugins

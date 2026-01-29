@@ -1,0 +1,26 @@
+---
+- name: Apply Portworx Operator from URL
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: "kubectl apply -f {{ portworx_operator_url }}"
+  # when: inventory_hostname in groups['primary_masters']
+
+- name: Wait for Portworx Operator Pod to be Ready (Fast & Reliable)
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Ready pod 
+    -l name=portworx-operator 
+    -n px-enterprise 
+    --timeout=5s
+  register: wait_result
+  until: wait_result.rc == 0
+  retries: 600
+  delay: 1
+  # when: inventory_hostname in groups['primary_masters']
+
+- name: Apply Portworx Cluster
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: "kubectl apply -f {{ portworx_cluster_url }}"
+  # when: inventory_hostname in groups['primary_masters']
