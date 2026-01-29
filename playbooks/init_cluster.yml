@@ -1,6 +1,8 @@
 ---
 - name: Setup Kubernetes Master (Create Cluster)
-  hosts: masters
+  hosts: primary_masters
+  vars:
+    master: "single"
   roles:
     - k8s_master
 
