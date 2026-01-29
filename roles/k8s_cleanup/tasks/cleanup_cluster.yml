@@ -11,6 +11,45 @@
     path: "/home/{{ ansible_user }}/.kube/config"
     state: absent
 
+# --- ส่วนที่เพิ่มเข้ามา (Remove Flannel & CNI) ---
+
+- name: Remove CNI Configuration Files
+  become: yes
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/cni/net.d
+    - /var/lib/cni
+
+- name: Remove Flannel Runtime State
+  become: yes
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /run/flannel
+    - /var/lib/flannel
+
+- name: Remove Flannel Network Interfaces
+  become: yes
+  ansible.builtin.shell: |
+    ip link show flannel.1 > /dev/null 2>&1 && ip link delete flannel.1 || true
+    ip link show cni0 > /dev/null 2>&1 && ip link delete cni0 || true
+  ignore_errors: yes
+  # ใช้ || true เพื่อให้ผ่านไปได้เลยถ้า interface ถูกลบไปแล้ว
+
+- name: Clear iptables Rules
+  become: yes
+  ansible.builtin.shell: |
+    iptables -F
+    iptables -t nat -F
+    iptables -t mangle -F
+    iptables -X
+  ignore_errors: yes
+
+# --- จบส่วนที่เพิ่ม ---
+
 - name: Verify cleanup by checking cluster-info
   become: yes
   become_user: "{{ ansible_user }}"
