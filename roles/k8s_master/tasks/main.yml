@@ -1,3 +1,17 @@
 ---
 - name: Initialize Kubernetes Cluster
   import_tasks: ./init_cluster.yml
+  when:
+    - master == 'single'
+
+- name: Initialize Kubernetes High Availability (HA) Cluster
+  import_tasks: ./init_ha.yml
+  when:
+    - master == 'ha'
+    - inventory_hostname in groups['primary_masters']
+
+- name: Join Master to HA Cluster
+  import_tasks: ./join_multi_master.yml
+  when:
+    - master == 'ha'
+    - inventory_hostname in groups['secondary_masters']
