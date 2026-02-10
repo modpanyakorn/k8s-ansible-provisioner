@@ -35,7 +35,7 @@
     force: yes # always download the file (Checking file)
   register: gpg_key_downloaded
 
-# De-armor GPG key and save to keyrings
+# De-armor GPG key and save to keyrings (ต้องแก้ทีหลังเพราะถ้า re-install จะติด overwrite, sudo password)
 - name: De-armor GPG key and save to keyrings
   become: yes
   ansible.builtin.shell:

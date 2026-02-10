@@ -1,6 +1,20 @@
 ---
 - name: Deploy Flannel Plugin
   import_tasks: ./deploy_flannel.yml
+  when:
+    - action == "deploy"
 
 - name: Deploy Portworx Plugin
   import_tasks: ./deploy_portworx.yml
+  when:
+    - action == "deploy"
+
+- name: Cleanup Portworx Plugin
+  import_tasks: ./cleanup_portworx.yml
+  when:
+    - action == "cleanup"
+
+- name: Cleanup Flannel Plugin
+  import_tasks: ./cleanup_flannel.yml
+  when:
+    - action == "cleanup"

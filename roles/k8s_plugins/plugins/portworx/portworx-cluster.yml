@@ -1,0 +1,32 @@
+# SOURCE: https://install.portworx.com/3.5?operator=true&mc=false&kbver=1.31.0&ns=px-enterprise&b=true&s=%22%2Fdev%2Fsdb%22&kd=%2Fdev%2Fsdc&c=px-cluster-a3d741b4-fc12-4b07-b35b-5c0f2df49d6a&stork=true&csi=true&mon=true&aut=true&tel=true&st=k8s&promop=true
+kind: StorageCluster
+apiVersion: core.libopenstorage.org/v1
+metadata:
+  name: px-cluster-a3d741b4-fc12-4b07-b35b-5c0f2df49d6a
+  namespace: px-enterprise
+  annotations:
+    portworx.io/install-source: "https://install.portworx.com/3.5?operator=true&mc=false&kbver=1.31.0&ns=px-enterprise&b=true&s=%22%2Fdev%2Fsdb%22&kd=%2Fdev%2Fsdc&c=px-cluster-a3d741b4-fc12-4b07-b35b-5c0f2df49d6a&stork=true&csi=true&mon=true&aut=true&tel=true&st=k8s&promop=true"
+spec:
+  image: portworx/oci-monitor:3.5.2
+  imagePullPolicy: Always
+  kvdb:
+    internal: true
+  storage:
+    devices:
+      - /dev/sdb
+    kvdbDevice: /dev/sdc
+  secretsProvider: k8s
+  stork:
+    enabled: true
+    args:
+      webhook-controller: "true"
+  autopilot:
+    enabled: true
+  csi:
+    enabled: true
+  monitoring:
+    telemetry:
+      enabled: true
+    prometheus:
+      enabled: true
+      exportMetrics: true

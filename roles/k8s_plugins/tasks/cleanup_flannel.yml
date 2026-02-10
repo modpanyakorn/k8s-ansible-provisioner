@@ -1,0 +1,65 @@
+---
+- name: Cleanup Flannel CNI
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: kubectl delete -f - --ignore-not-found
+  args:
+    stdin: "{{ lookup('file', role_path + '/plugins/flannel/kube-flannel.yml') }}"
+  when: inventory_hostname in groups['primary_masters']
+
+- name: Cleanup Flannel Networking and State
+  become: yes
+  block:
+    - name: Remove CNI Configuration Files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/cni/net.d
+        - /var/lib/cni
+
+    - name: Remove Flannel Runtime State
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /run/flannel
+        - /var/lib/flannel
+
+    - name: Remove Flannel Network Interfaces
+      ansible.builtin.shell: |
+        ip link show flannel.1 > /dev/null 2>&1 && ip link delete flannel.1 || true
+        ip link show cni0 > /dev/null 2>&1 && ip link delete cni0 || true
+      ignore_errors: yes
+      # ใช้ || true เพื่อให้ผ่านไปได้เลยถ้า interface ถูกลบไปแล้ว
+
+    - name: Clear iptables Rules
+      ansible.builtin.shell: |
+        iptables -P INPUT ACCEPT
+        iptables -P FORWARD ACCEPT
+        iptables -P OUTPUT ACCEPT
+        iptables -t nat -F
+        iptables -t mangle -F
+        iptables -F
+        iptables -X
+      ignore_errors: yes
+
+- name: Forcefully kill and restart containerd
+  become: yes
+  shell: |
+    systemctl stop kubelet || true
+    pkill -9 containerd || true
+    systemctl start containerd
+    systemctl start kubelet
+  register: force_restart_out
+  ignore_errors: yes
+
+- name: Wait for containerd to be active
+  become: yes
+  ansible.builtin.systemd:
+    name: containerd
+    state: started
+  retries: 5
+  delay: 5
+  register: containerd_status
+  until: containerd_status.status.ActiveState == "active"

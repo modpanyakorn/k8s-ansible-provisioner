@@ -3,3 +3,5 @@
   hosts: primary_masters
   roles:
     - k8s_plugins
+  vars:
+    action: "deploy"

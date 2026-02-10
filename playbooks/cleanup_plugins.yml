@@ -1,0 +1,7 @@
+---
+- name: Cleanup Plugin
+  hosts: k8s_cluster
+  roles:
+    - k8s_plugins
+  vars:
+    action: "cleanup"

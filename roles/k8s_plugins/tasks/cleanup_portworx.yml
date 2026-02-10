@@ -1,0 +1,37 @@
+- name: Get Portworx StorageCluster Name
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: |
+    kubectl get storagecluster -n px-enterprise -o jsonpath='{.items[0].metadata.name}'
+  register: px_cluster_name_raw
+  ignore_errors: yes
+
+- name: Set Cluster Name Variable
+  ansible.builtin.set_fact:
+    px_cluster_name: "{{ px_cluster_name_raw.stdout }}"
+  when: px_cluster_name_raw.stdout != ""
+
+- name: Set Portworx Delete Strategy to Uninstall
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: |
+    kubectl patch storagecluster {{ px_cluster_name }} -n px-enterprise --type merge -p '{"spec":{"deleteStrategy":{"type":"UninstallAndWipe"}}}'
+  when: px_cluster_name is defined
+  ignore_errors: yes
+
+- name: Delete Portworx StorageCluster
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: |
+    kubectl delete storagecluster {{ px_cluster_name }} -n px-enterprise --wait=true
+  async: 300
+  poll: 5
+  when: px_cluster_name is defined
+  ignore_errors: yes
+
+- name: Delete Portworx Operator
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: "kubectl delete deployment -n px-enterprise portworx-operator"
+  run_once: true
+  ignore_errors: yes

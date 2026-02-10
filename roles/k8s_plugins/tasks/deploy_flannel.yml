@@ -1,19 +1,58 @@
----
-- name: Fetch Flannel manifest from URL
-  ansible.builtin.uri:
-    url: "{{ flannel_url }}"
-    return_content: yes
-  register: flannel_manifest_raw
-  # when: inventory_hostname in groups['primary_masters']
+# ---
+# - name: Fetch Flannel manifest from URL
+#   ansible.builtin.uri:
+#     url: "{{ flannel_url }}"
+#     return_content: yes
+#   register: flannel_manifest_raw
+#   # when: inventory_hostname in groups['primary_masters']
 
-- name: Apply Flannel CNI with Dynamic CIDR
+# - name: Apply Flannel CNI with Dynamic CIDR
+#   become: yes
+#   become_user: "{{ ansible_user }}"
+#   ansible.builtin.command: kubectl apply -f -
+#   args:
+#     stdin: >
+#       {{ flannel_manifest_raw.content | 
+#          regex_replace('"Network":\s*"[^"]*"', '"Network": "' + pod_network_cidr + '"') }}
+#   register: flannel_res
+#   changed_when: "'created' in flannel_res.stdout or 'configured' in flannel_res.stdout"
+#   # when: inventory_hostname in groups['primary_masters']
+
+---
+- name: Apply Flannel CNI from Local File
   become: yes
   become_user: "{{ ansible_user }}"
   ansible.builtin.command: kubectl apply -f -
   args:
     stdin: >
-      {{ flannel_manifest_raw.content | 
+      {{ lookup('file', role_path + '/plugins/flannel/kube-flannel.yml') | 
          regex_replace('"Network":\s*"[^"]*"', '"Network": "' + pod_network_cidr + '"') }}
+  # when: inventory_hostname in groups['primary_masters']
   register: flannel_res
   changed_when: "'created' in flannel_res.stdout or 'configured' in flannel_res.stdout"
+
+- name: Wait for CoreDNS Deployment to be Available
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Available deployment/coredns 
+    -n kube-system 
+    --timeout=5s
+  register: coredns_wait
+  until: coredns_wait.rc == 0
+  retries: 300
+  delay: 1
+  # when: inventory_hostname in groups['primary_masters']
+
+# 3. แสดงผลสถานะสุดท้ายเพื่อความมั่นใจ
+- name: Show Final Pod Status in kube-system and kube-flannel
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: kubectl get pods -A -o wide
+  register: final_status
+  # when: inventory_hostname in groups['primary_masters']
+
+- name: Display Cluster Health
+  ansible.builtin.debug:
+    var: final_status.stdout_lines
   # when: inventory_hostname in groups['primary_masters']
