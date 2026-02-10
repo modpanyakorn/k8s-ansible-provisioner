@@ -44,7 +44,6 @@
   delay: 1
   # when: inventory_hostname in groups['primary_masters']
 
-# 3. แสดงผลสถานะสุดท้ายเพื่อความมั่นใจ
 - name: Show Final Pod Status in kube-system and kube-flannel
   become: yes
   become_user: "{{ ansible_user }}"

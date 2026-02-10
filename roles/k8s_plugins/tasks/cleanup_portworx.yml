@@ -1,3 +1,35 @@
+- name: Uninstall PX-Backup Helm release
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: "helm uninstall px-central -n px-backup"
+  ignore_errors: yes
+  run_once: true
+
+- name: Wait for all PX-Backup pods to terminate
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: "kubectl get pods -n px-backup --no-headers 2>/dev/null | wc -l"
+  register: pod_count
+  until: pod_count.stdout | int == 0
+  retries: 30
+  delay: 5
+  ignore_errors: yes
+  run_once: true
+
+- name: Delete all PVCs in px-backup namespace
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: "kubectl delete pvc --all -n px-backup --force --grace-period=0"
+  ignore_errors: yes
+  run_once: true
+
+- name: Delete px-backup namespace
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: "kubectl delete ns px-backup --wait=true"
+  ignore_errors: yes
+  run_once: true
+
 - name: Get Portworx StorageCluster Name
   become: yes
   become_user: "{{ ansible_user }}"
@@ -5,11 +37,13 @@
     kubectl get storagecluster -n px-enterprise -o jsonpath='{.items[0].metadata.name}'
   register: px_cluster_name_raw
   ignore_errors: yes
+  run_once: true
 
 - name: Set Cluster Name Variable
   ansible.builtin.set_fact:
     px_cluster_name: "{{ px_cluster_name_raw.stdout }}"
   when: px_cluster_name_raw.stdout != ""
+  run_once: true
 
 - name: Set Portworx Delete Strategy to Uninstall
   become: yes
@@ -18,20 +52,71 @@
     kubectl patch storagecluster {{ px_cluster_name }} -n px-enterprise --type merge -p '{"spec":{"deleteStrategy":{"type":"UninstallAndWipe"}}}'
   when: px_cluster_name is defined
   ignore_errors: yes
+  run_once: true
 
-- name: Delete Portworx StorageCluster
+- name: Delete Portworx StorageCluster (Wait up to 2 min)
   become: yes
   become_user: "{{ ansible_user }}"
   ansible.builtin.shell: |
-    kubectl delete storagecluster {{ px_cluster_name }} -n px-enterprise --wait=true
-  async: 300
-  poll: 5
+    kubectl delete storagecluster {{ px_cluster_name }} -n px-enterprise --wait=true --timeout=120s
   when: px_cluster_name is defined
   ignore_errors: yes
+  run_once: true
+
+- name: Force remove StorageCluster Finalizers (Safety Net)
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: |
+    kubectl patch storagecluster {{ px_cluster_name }} -n px-enterprise --type json -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
+  when: px_cluster_name is defined
+  ignore_errors: yes
+  run_once: true
+
+- name: Force delete any stuck Pods in px-enterprise (Zombie Killer)
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: |
+    kubectl get pods -n px-enterprise --no-headers | awk '{print $1}' | xargs -r -I{} kubectl delete pod {} -n px-enterprise --force --grace-period=0
+  ignore_errors: yes
+  run_once: true
 
 - name: Delete Portworx Operator
   become: yes
   become_user: "{{ ansible_user }}"
   ansible.builtin.command: "kubectl delete deployment -n px-enterprise portworx-operator"
-  run_once: true
   ignore_errors: yes
+  run_once: true
+
+# - name: Force Unmount stuck Portworx/Kubelet volumes
+#   become: yes
+#   ansible.builtin.shell: |
+#     mount | grep -E 'portworx|pwx|kubelet/pods' | awk '{print $3}' | sort -r | xargs -r -n 1 umount -l
+#   ignore_errors: yes
+#   loop: [1, 2]
+
+# - name: Wipe Disk Signatures (/dev/sdb, /dev/sdc)
+#   become: yes
+#   ansible.builtin.shell: |
+#     wipefs -a -f {{ item }}
+#   loop:
+#     - /dev/sdb
+#     - /dev/sdc
+#   ignore_errors: yes
+#   register: wipe_result
+#   failed_when: 
+#     - wipe_result.rc != 0 
+#     - '"No such file or directory" not in wipe_result.stderr'
+
+# - name: Remove Portworx
+#   become: yes
+#   ansible.builtin.file:
+#     path: "{{ item }}"
+#     state: absent
+#   loop:
+#     - /etc/pwx
+#     - /opt/pwx
+#     - /var/lib/osd
+#     - /var/lib/portworx
+#     - /var/run/portworx
+#     - /var/lib/kubelet/pods 
+#   ignore_errors: yes

@@ -10,18 +10,115 @@
   become: yes
   become_user: "{{ ansible_user }}"
   ansible.builtin.command: >
-    kubectl wait --for=condition=Ready pod 
-    -l name=portworx-operator 
-    -n px-enterprise 
-    --timeout=30s
-  register: wait_result
-  until: wait_result.rc == 0
-  retries: 20
-  delay: 2
+    kubectl wait --for=condition=Ready pod
+    -l name=portworx-operator
+    -n px-enterprise
+    --timeout=60s
+  register: wait_op
+  until: wait_op.rc == 0
+  retries: 30
+  delay: 5
 
-- name: Apply Portworx Cluster
+- name: Wait for Portworx StorageCluster CRD to be established
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: "kubectl get crd storageclusters.core.libopenstorage.org"
+  register: crd_check
+  until: crd_check.rc == 0
+  retries: 20
+  delay: 10
+
+- name: Apply Portworx Cluster (StorageCluster)
   become: yes
   become_user: "{{ ansible_user }}"
   ansible.builtin.command: "kubectl apply -f -"
   args:
     stdin: "{{ lookup('file', role_path + '/plugins/portworx/portworx-cluster.yml') }}"
+
+- name: Wait for Portworx Cluster to be Online
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: |
+    kubectl get storagecluster -n px-enterprise -o jsonpath='{.items[0].status.phase}'
+  register: cluster_status
+  until: cluster_status.stdout == "Online" or cluster_status.stdout == "Running"
+  retries: 60 
+  delay: 20
+
+- name: Apply Portworx StorageClass
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: "kubectl apply -f -"
+  args:
+    stdin: "{{ lookup('file', role_path + '/plugins/portworx/storage-class.yml') }}"
+
+- name: Apply Portworx Secrets
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: "kubectl apply -f -"
+  args:
+    stdin: "{{ lookup('file', role_path + '/plugins/portworx/portworx-secrets.yml') }}"
+  no_log: true
+
+- name: Clean up any stale pre-install jobs
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: "kubectl delete job -n px-backup --all"
+  ignore_errors: yes
+
+- name: Add Portworx Helm Repository
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: "helm repo add portworx http://charts.portworx.io/ --force-update"
+
+- name: Update Helm Repository
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.command: "helm repo update"
+
+- name: Install Portworx Central (PX-Backup) using Helm
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: >
+    helm upgrade --install px-central portworx/px-central 
+    --namespace px-backup 
+    --create-namespace 
+    --version 2.10.2 
+    -f -
+  args:
+    stdin: "{{ lookup('file', role_path + '/plugins/portworx/values-px-central.yaml') }}"
+  async: 1800 
+  poll: 15
+  register: helm_install_result
+
+- name: Show Helm Installation Logs
+  ansible.builtin.debug:
+    msg:
+      - "STDOUT: {{ helm_install_result.stdout }}"
+      - "STDERR: {{ helm_install_result.stderr }}"
+  when: helm_install_result is defined
+
+- name: Get PX-Central Admin Password
+  become: yes
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: "kubectl get secret px-central-admin -n px-backup -o jsonpath='{.data.password}' | base64 -d"
+  register: admin_pass
+  ignore_errors: yes
+  changed_when: false
+
+- name: Display Login Credentials
+  ansible.builtin.debug:
+    msg: 
+      - "---------------------------------------------------"
+      - "Installation Complete!"
+      - "URL: http://<Worker-IP>:<NodePort>"
+      - "Username: admin"
+      - "Password: {{ admin_pass.stdout | default('Wait for pod to be ready...') }}"
+      - "---------------------------------------------------"
+
+- name: Show Helm Installation Logs
+  ansible.builtin.debug:
+    msg:
+      - "STDOUT: {{ helm_install_result.stdout }}"
+      - "STDERR: {{ helm_install_result.stderr }}"
+  when: helm_install_result is defined

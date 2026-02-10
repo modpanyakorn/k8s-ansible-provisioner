@@ -31,7 +31,6 @@
         ip link show flannel.1 > /dev/null 2>&1 && ip link delete flannel.1 || true
         ip link show cni0 > /dev/null 2>&1 && ip link delete cni0 || true
       ignore_errors: yes
-      # ใช้ || true เพื่อให้ผ่านไปได้เลยถ้า interface ถูกลบไปแล้ว
 
     - name: Clear iptables Rules
       ansible.builtin.shell: |
@@ -44,22 +43,27 @@
         iptables -X
       ignore_errors: yes
 
-- name: Forcefully kill and restart containerd
-  become: yes
-  shell: |
-    systemctl stop kubelet || true
-    pkill -9 containerd || true
-    systemctl start containerd
-    systemctl start kubelet
-  register: force_restart_out
-  ignore_errors: yes
+# - name: Forcefully kill and res`tart containerd
+#   become: yes
+#   shell: |
+#     systemctl stop kubelet || true
+#     pkill -9 containerd || true
+#     systemctl start containerd
+#     systemctl start kubelet
+#   register: force_restart_out
+#   ignore_errors: yes
 
-- name: Wait for containerd to be active
-  become: yes
-  ansible.builtin.systemd:
-    name: containerd
-    state: started
-  retries: 5
-  delay: 5
-  register: containerd_status
-  until: containerd_status.status.ActiveState == "active"
+# - name: Wait for containerd to be active
+#   become: yes
+#   ansible.builtin.systemd:
+#     name: containerd
+#     state: started
+#   retries: 5
+#   delay: 5
+#   register: containerd_status
+#   until: containerd_status.stat`us.ActiveState == "active"
+
+# - name: Restart Kubelet to refresh state
+#   ansible.builtin.systemd:
+#     name: kubelet
+#     state: restarted
